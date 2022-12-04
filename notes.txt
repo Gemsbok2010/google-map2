@@ -1,0 +1,717 @@
+import { Helmet } from "react-helmet";
+import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { ReactSession } from "react-client-session";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import GooglePlacesAutocomplete, {
+  geocodeByPlaceId,
+  geocodeByAddress,
+  getLatLng,
+} from "react-google-places-autocomplete";
+
+// ============= GOOGLE MAP TAG <Map/>================
+function Map({ longitude, latitude, address, coord, geoLocate }) {
+  const defaultProps = {
+    center: {
+      lat: 23.6978,
+      lng: 120.9605,
+    },
+    zoom: 6,
+    latLngBounds: {
+      north: 25.36,
+      south: 30.35,
+      east: 155.81,
+      west: 110.28,
+    },
+  };
+
+  const option = {
+    center: {
+      lat: coord.lat,
+      lng: coord.lng,
+    },
+    zoom: 17,
+  };
+
+  return (
+    <>
+      {latitude && longitude ? (
+        <GoogleMap
+          zoom={17}
+          center={address ? option.center : { lat: latitude, lng: longitude }}
+          mapContainerStyle={{
+            width: "100%",
+            height: "400px",
+            marginBottom: "20px",
+          }}
+          options={{
+            disableDefaultUI: true,
+            gestureHandling: "none",
+            restriction: {
+              strictBounds: false,
+              latLngBounds: defaultProps.latLngBounds,
+            },
+          }}
+        >
+          <button
+            style={{
+              zIndex: "1",
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+            }}
+            className="useCurrentButton"
+            onClick={geoLocate}
+          >
+            使用當前位置
+          </button>
+
+          <Marker
+            position={
+              address ? option.center : { lat: latitude, lng: longitude }
+            }
+            animation={window.google.maps.Animation.DROP}
+            icon={{
+              url: "./images/pencilmarker.png",
+              origin: new window.google.maps.Point(0, 0),
+              anchor: new window.google.maps.Point(35, -35),
+              scaledSize: new window.google.maps.Size(35, 35),
+              anchorPoint: window.google.maps.Point(50, -29),
+            }}
+          />
+        </GoogleMap>
+      ) : (
+        <GoogleMap
+          center={address ? option.center : defaultProps.center}
+          zoom={option.center.lat ? 17 : 6}
+          mapContainerStyle={{
+            width: "100%",
+            height: "400px",
+            marginBottom: "20px",
+          }}
+          options={{
+            disableDefaultUI: true,
+            gestureHandling: "none",
+            restriction: {
+              strictBounds: false,
+              latLngBounds: defaultProps.latLngBounds,
+            },
+          }}
+        >
+          <button
+            style={{
+              zIndex: "2000",
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+            }}
+            className="useCurrentButton"
+            onClick={geoLocate}
+          >
+            使用當前位置
+          </button>
+
+          {address ? (
+            <Marker
+              position={option.center}
+              animation={window.google.maps.Animation.DROP}
+              icon={{
+                url: "./images/pencilmarker.png",
+                origin: new window.google.maps.Point(0, 0),
+                anchor: new window.google.maps.Point(35, -35),
+                scaledSize: new window.google.maps.Size(35, 35),
+                anchorPoint: window.google.maps.Point(50, -29),
+              }}
+            />
+          ) : null}
+        </GoogleMap>
+      )}
+    </>
+  );
+}
+
+const Question9 = () => {
+  const navigate = useNavigate();
+  ReactSession.setStoreType("sessionStorage");
+
+  const [country, setCountry] = useState("");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+  const [, setPostalCode] = useState("");
+  const [suburb, setSuburb] = useState("");
+  const [street, setStreet] = useState("");
+  const [streetNo, setStreetNo] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [latitude, setLatitude] = useState("");
+
+  // ================= GEOLOCATION ==================
+  const geoLocate = (e) => {
+    e.preventDefault();
+    if (navigator.geolocation) {
+      const geocoder = new window.google.maps.Geocoder();
+
+      navigator.geolocation.getCurrentPosition((position) => {
+        setLatitude(position.coords.latitude);
+        setLongitude(position.coords.longitude);
+        const pos = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+
+        geocoder.geocode({ location: pos }, (results, status) => {
+          if (status === "OK") {
+            console.log(results);
+            ReactSession.set("streetNo", "");
+            ReactSession.set("street", "");
+            ReactSession.set("suburb", "");
+            ReactSession.set("postalCode", "");
+            ReactSession.set("city", "");
+            ReactSession.set("state", "");
+            ReactSession.set("country", "");
+            ReactSession.set("latitude", "");
+            ReactSession.set("longitude", "");
+            setStreetNo("");
+            setStreet("");
+            setSuburb("");
+            setPostalCode("");
+            setCity("");
+            setState("");
+            setCountry("");
+            setLatitude("");
+            setLongitude("");
+
+            for (var i = 0; i < results[0].address_components.length; i++) {
+              if (
+                results[0].address_components[i].types[0] === "street_number"
+              ) {
+                ReactSession.set(
+                  "streetNo",
+                  results[0].address_components[i].long_name
+                );
+                setStreetNo(results[0].address_components[i].long_name);
+              }
+
+              if (results[0].address_components[i].types[0] === "route") {
+                ReactSession.set(
+                  "street",
+                  results[0].address_components[i].long_name
+                );
+                setStreet(results[0].address_components[i].long_name);
+              }
+
+              if (
+                results[0].address_components[i].types[0] ===
+                "administrative_area_level_3"
+              ) {
+                ReactSession.set(
+                  "suburb",
+                  results[0].address_components[i].long_name
+                );
+                setSuburb(results[0].address_components[i].long_name);
+              }
+
+              if (results[0].address_components[i].types[0] === "postal_code") {
+                ReactSession.set(
+                  "postalCode",
+                  results[0].address_components[i].long_name
+                );
+                setPostalCode(results[0].address_components[i].long_name);
+              }
+              if (
+                results[0].address_components[i].types[0] ===
+                "administrative_area_level_2"
+              ) {
+                ReactSession.set(
+                  "city",
+                  results[0].address_components[i].long_name
+                );
+                setCity(results[0].address_components[i].long_name);
+                ReactSession.set("state", "");
+              }
+
+              if (
+                results[0].address_components[i].types[0] ===
+                "administrative_area_level_1"
+              ) {
+                ReactSession.set(
+                  "state",
+                  results[0].address_components[i].long_name
+                );
+                setState(results[0].address_components[i].long_name);
+                ReactSession.set("city", "");
+              }
+
+              if (results[0].address_components[i].types[0] === "country") {
+                ReactSession.set(
+                  "country",
+                  results[0].address_components[i].long_name
+                );
+                setCountry(results[0].address_components[i].long_name);
+              }
+              ReactSession.set("latitude", pos.lat);
+              ReactSession.set("longitude", pos.lng);
+              setLatitude(pos.lat);
+              setLongitude(pos.lng);
+            }
+          }
+        });
+      });
+    }
+  };
+
+  // ============= POPULATE SESSION DATA =================
+  useEffect(() => {
+    setCountry(ReactSession.get("country"));
+    setState(ReactSession.get("state"));
+    setCity(ReactSession.get("city"));
+    setPostalCode(ReactSession.get("postalCode"));
+    setSuburb(ReactSession.get("suburb"));
+    setStreet(ReactSession.get("street"));
+    setStreetNo(ReactSession.get("streetNo"));
+    setLongitude(ReactSession.get("longitude"));
+    setLatitude(ReactSession.get("latitude"));
+  }, []);
+
+  const [address, setAddress] = useState("");
+  const [coord, setCoord] = useState({});
+
+  // ============== AUTOCOMPLETE ===============
+  const getAddressObject = async (address_components, googleCoord) => {
+    ReactSession.set("streetNo", "");
+    ReactSession.set("street", "");
+    ReactSession.set("suburb", "");
+    ReactSession.set("postalCode", "");
+    ReactSession.set("city", "");
+    ReactSession.set("state", "");
+    ReactSession.set("country", "");
+    ReactSession.set("latitude", "");
+    ReactSession.set("longitude", "");
+    setStreetNo("");
+    setStreet("");
+    setSuburb("");
+    setPostalCode("");
+    setCity("");
+    setState("");
+    setCountry("");
+    setLatitude("");
+    setLongitude("");
+
+    for (var i = 0; i < address_components.length; i++) {
+      if (address_components[i].types[0] === "street_number") {
+        ReactSession.set("streetNo", address_components[i].long_name);
+        setStreetNo(address_components[i].long_name);
+      }
+
+      if (address_components[i].types[0] === "route") {
+        ReactSession.set("street", address_components[i].long_name);
+        setStreet(address_components[i].long_name);
+      }
+
+      if (address_components[i].types[0] === "administrative_area_level_3") {
+        ReactSession.set("suburb", address_components[i].long_name);
+        setSuburb(address_components[i].long_name);
+      }
+
+      if (address_components[i].types[0] === "postal_code") {
+        ReactSession.set("postalCode", address_components[i].long_name);
+        setPostalCode(address_components[i].long_name);
+      }
+
+      if (address_components[i].types[0] === "administrative_area_level_2") {
+        ReactSession.set("city", address_components[i].long_name);
+        setCity(address_components[i].long_name);
+        ReactSession.set("state", "");
+      }
+
+      if (address_components[i].types[0] === "administrative_area_level_1") {
+        ReactSession.set("state", address_components[i].long_name);
+        setState(address_components[i].long_name);
+        ReactSession.set("city", "");
+      }
+
+      if (address_components[i].types[0] === "country") {
+        ReactSession.set("country", address_components[i].long_name);
+        setCountry(address_components[i].long_name);
+      }
+    }
+
+    ReactSession.set("latitude", googleCoord.lat);
+    setLatitude(googleCoord.lat);
+    ReactSession.set("longitude", googleCoord.lng);
+    setLongitude(googleCoord.lng);
+  };
+
+  useEffect(() => {
+    const func = async () => {
+      // geocodeByPlaceId hook needs place id to produce location, like google map's places in EJS
+      const geocodeObj = await geocodeByPlaceId(address.value.place_id);
+      console.log(geocodeObj);
+
+      const result = await geocodeByAddress(address.label);
+      const googleCoord = await getLatLng(result[0]);
+      setCoord(googleCoord);
+
+      // geocodeByAddress(address.label).then((result) => {
+      //   getLatLng(result[0]).then((googleCoord) => setCoord(googleCoord));
+      // });
+
+      const addressObject =
+        geocodeObj &&
+        getAddressObject(geocodeObj[0].address_components, googleCoord);
+    };
+
+    func();
+  }, [address, street]);
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+    // LANGUAGE AND PLACES
+    language: ["zh-TW"],
+    region: ["TW"],
+    libraries: ["places"],
+  });
+
+  if (!isLoaded) return <div>請稍待...</div>;
+
+  return (
+    <>
+      <Helmet>
+        <title>愛課網</title>
+        <link rel="shortcut icon" type="image/png" href="/favicon.ico" />
+        <meta name="description" content="刊登問答" />
+      </Helmet>
+      <div className="wrap">
+        <form action="" id="formNine">
+          <section className="questionCard container">
+            <figure>
+              <Link to="/">
+                <img
+                  src="./images/mainLogo.png"
+                  alt="LOGO"
+                  className="img-fluid"
+                />
+              </Link>
+            </figure>
+            <h2>理想上課地點</h2>
+
+            <input
+              type="text"
+              value={
+                address
+                  ? `${country}${state}${city}${suburb}${street}${streetNo}`
+                  : ""
+              }
+            />
+
+            <GooglePlacesAutocomplete
+              apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
+              apiOptions={{ language: "zh-TW", region: "tw" }}
+              autocompletionRequest={{
+                componentRestrictions: {
+                  country: "tw",
+                },
+              }}
+              selectProps={{
+                address,
+                onChange: setAddress,
+                isClearable: true,
+                placeholder: "請輸入地址",
+                className: "googlePlacesAutocomplete",
+                classNamePrefix: "react-select",
+                noOptionsMessage: () => {
+                  return (
+                    <>
+                      <div>
+                        <span>請輸入</span>
+                      </div>
+                    </>
+                  );
+                },
+                styles: {
+                  input: (provided) => ({
+                    ...provided,
+                    color: "#777",
+                  }),
+
+                  option: (provided) => ({
+                    ...provided,
+                    color: "#777",
+                    fontWeight: "500",
+                  }),
+                  control: () => ({
+                    outline: "none",
+                  }),
+                  noOptionsMessage: (provided) => ({
+                    ...provided,
+                    outline: "none",
+                  }),
+                },
+              }}
+              onLoadFailed={(error) =>
+                console.error("Could not inject Google script", error)
+              }
+            />
+
+            <Map
+              longitude={longitude}
+              latitude={latitude}
+              address={address}
+              coord={coord}
+              geoLocate={geoLocate}
+            />
+
+            <div className="bottomBtn">
+              <button className="btn-previous">
+                <Link to="/question8">上一步</Link>
+              </button>
+              {street !== "" ? (
+                <button type="submit" className="btn-volg">
+                  檢視刊登
+                </button>
+              ) : (
+                <button className="btn-volg" disabled>
+                  檢視刊登
+                </button>
+              )}
+            </div>
+          </section>
+        </form>
+      </div>
+      <style jsx>{`
+        .wrap {
+          display: -webkit-box;
+          display: -ms-flexbox;
+          display: flex;
+          -webkit-box-pack: center;
+          -ms-flex-pack: center;
+          justify-content: center;
+          -webkit-box-align: center;
+          -ms-flex-align: center;
+          align-items: center;
+          min-height: 100vh;
+          background: #a5ce0f;
+          padding-bottom: 60px;
+          padding-top: 60px;
+        }
+        .wrap .questionCard {
+          width: 495px;
+          min-height: 100vh;
+          padding: 20px 10px;
+          display: -webkit-box;
+          display: -ms-flexbox;
+          display: flex;
+          -webkit-box-orient: vertical;
+          -webkit-box-direction: normal;
+          -ms-flex-direction: column;
+          flex-direction: column;
+          -webkit-box-align: center;
+          -ms-flex-align: center;
+          align-items: center;
+          border-radius: 0px;
+          background: #fff;
+          border: 1px solid #ebebeb;
+          -webkit-box-shadow: 4px 4px 20px rgba(51, 51, 51, 0.3);
+          box-shadow: 4px 4px 20px rgba(51, 51, 51, 0.3);
+        }
+        .wrap .questionCard > figure {
+          width: 200px;
+          margin-bottom: 40px;
+        }
+        .wrap .questionCard > figure > a {
+          display: block;
+        }
+
+        .wrap .questionCard h2 {
+          font-family: sans-serif;
+          text-align: center;
+          font-weight: 800;
+          font-size: 22px;
+          width: 100%;
+          margin: 0px auto 24px;
+          padding-top: 8px;
+          padding-bottom: 8px;
+          color: #2b2b2b;
+        }
+
+        .wrap .questionCard > button {
+          background: #fff;
+          color: #6b7c93;
+          padding: 0;
+          margin-bottom: 20px;
+          -webkit-box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11),
+            0 1px 3px rgba(0, 0, 0, 0.08);
+          box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11),
+            0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .useCurrentButton {
+          background-color: #a5ce0f;
+          color: white;
+          font-weight: 800;
+          width: 150px;
+          height: 36px;
+          outline: none;
+          border: none;
+          font-size: 12px;
+          cursor: pointer;
+        }
+        #notShow {
+          display: none;
+        }
+        .useCurrentButton:active,
+        .useCurrentButton:focus {
+          outline: none;
+          border: none;
+        }
+        .bottomBtn {
+          display: flex;
+          display: -webkit-flex;
+          width: 100%;
+          margin-top: 20px;
+          justify-content: space-around;
+        }
+        .bottomBtn > button:active {
+          border: none;
+          outline: none;
+        }
+        .bottomBtn > button:focus {
+          border: none;
+          outline: none;
+        }
+        .btn-volg,
+        .btn-previous {
+          position: relative;
+          background-color: #a5ce0f;
+          color: white;
+          border: 1px solid #a5ce0f;
+          cursor: pointer;
+          font-weight: 800;
+          width: 150px;
+          height: 50px;
+          line-height: 50px;
+          outline: none;
+          font-size: 20px;
+          border-radius: 4px;
+          padding: 0;
+        }
+
+        .wrap .btn-volg:disabled {
+          background-color: #ddd;
+          color: #888;
+          cursor: default;
+          border: #ddd;
+        }
+
+        iframe {
+          margin-bottom: 20px;
+        }
+        input[type="text"] {
+          outline: none;
+          padding: 4px 10px 4px 13px;
+          height: 50px;
+          width: 100%;
+          color: #2b2b2b;
+          font-size: 16px;
+          font-weight: 500;
+          font-family: sans-serif;
+          margin: 0px auto 20px;
+          border: 1px solid #ebebeb;
+        }
+
+        .googleAutoComplete {
+          width: 100%;
+        }
+
+        .googlePlacesAutocomplete {
+          width: 100%;
+        }
+        .react-select-container {
+          outline: none;
+          width: 100%;
+          height: 50px;
+          line-height: 50px;
+        }
+        .react-select__control {
+          outline: none;
+          border: 1px solid #ebebeb;
+          margin-bottom: 20px;
+          width: 100%;
+          color: #2b2b2b;
+          font-size: 16px;
+          border-radius: 0;
+          position: relative;
+          height: 50px;
+          line-height: 50px;
+        }
+
+        .react-select__value-container {
+          width: 100%;
+          color: #2b2b2b;
+          font-size: 16px;
+          border: none;
+          margin-bottom: 20px;
+          font-weight: 400;
+          border-radius: 0;
+          padding: 0 0 0 13px;
+          transform: translateY(-6%);
+          border: none;
+        }
+
+        .react-select__single-value {
+          height: 50px;
+          line-height: 50px;
+          top: 50%;
+          color: #2b2b2b;
+          font-weight: 500;
+        }
+
+        .react-select__placeholder {
+          font-weight: 500;
+          position: absolute;
+          transform: translateY(-50%);
+          top: 50%;
+        }
+
+        .react-select__input {
+          height: 50px;
+          line-height: 50px;
+          font-weight: 500;
+        }
+
+        .react-select__control:hover {
+          border: 1px solid #ebebeb;
+          outline: none;
+        }
+
+        .react-select__indicators {
+          display: none;
+        }
+
+        .btn-previous a {
+          color: white;
+          font-weight: 800;
+          width: 100%;
+          height: 100%;
+          font-family: sans-serif;
+          position: relative;
+          display: block;
+        }
+        @media only screen and (min-width: 768px) {
+          .wrap .questionCard {
+            width: 710px;
+            padding: 30px 20px;
+          }
+          .btn-volg,
+          .btn-previous {
+            width: 200px;
+          }
+        }
+      `}</style>
+    </>
+  );
+};
+
+export default Question9;
+
+
